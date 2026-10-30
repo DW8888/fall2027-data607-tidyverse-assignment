@@ -78,6 +78,8 @@ Do not submit work to the previous course repository. Use this repository for th
 ## Class Vignette Index
 
 
+| Renee Watson | [Tidyverse Assignment.Rmd](Tidyverse%20Assignment.Rmd) | readr::read_csv(), dplyr::filter(), dplyr::select(), tidyr::pivot_longer(), dplyr::mutate(), dplyr::group_by(), dplyr::summarise(), dplyr::arrange() | [World Bank Life Expectancy](https://data.worldbank.org/indicator/SP.DYN.LE00.IN) | Analyzes life expectancy across 12 countries from 2000–2024 using filtering, reshaping, summary statistics, and comparisons between 2019 and 2024. |
+
 
 
 **Students:** Edit this README in place by adding one row for your Part 1 vignette.
