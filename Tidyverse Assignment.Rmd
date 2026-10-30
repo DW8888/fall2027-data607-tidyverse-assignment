@@ -1,0 +1,125 @@
+---
+title: "Exploring Life Expectancy Using Tidyverse"
+author: "Renee Watson"
+date: "2026-10-28"
+output: html_document
+---
+
+## Introduction
+
+This vignette demonstrates how to use functions from the dplyr and tidyr packages to explore life expectancy data from the World Bank. The goal is to compare life expectancy across selected countries and examine changes between 2000 and 2024. 
+
+```{r} 
+# Load Packages and Import Data
+# Skip the first four rows because they contain metadata rather than column headngs
+library(tidyverse)
+
+lifeexp <- read_csv("API_SP.DYN.LE00.IN_DS2_en_csv_v2_1528.csv",
+                    skip = 4, 
+                    show_col_types = FALSE)
+
+dim(lifeexp)
+head(lifeexp)
+names(lifeexp)
+```
+
+
+```{r}
+# Select 12 countries for comparison
+countries <- c(
+  "United States", "Canada", "Mexico", "Brazil",
+  "United Kingdom", "France", "Germany", "Japan",
+  "India", "China", "South Africa", "Nigeria"
+)
+
+# Filter the dataset and select the years 2000–2024
+lifeexp_clean <- lifeexp %>%
+  filter(`Country Name` %in% countries) %>%
+  select(
+    Country = `Country Name`,
+    `2000`:`2024`
+  )
+
+
+dim(lifeexp_clean)
+head(lifeexp_clean)
+```
+
+
+```{r}
+# Convert the dataset from wide format to long format
+lifeexp_long <- lifeexp_clean %>%
+  pivot_longer(
+    cols = `2000`:`2024`,
+    names_to = "Year",
+    values_to = "Life_Expectancy"
+  ) %>%
+  mutate(Year = as.integer(Year))
+
+
+dim(lifeexp_long)
+head(lifeexp_long)
+str(lifeexp_long)
+```
+
+
+The pivot_longer() function from the tidyr package converts data from wide format to long format. In the original dataset, each year is represented by a separate column. Reshaping the data creates a year column and a life expectancy column, making it easier to analyze changes over time and calculate summary statistics. 
+
+```{r}
+# Calculate summary statistics for each country
+country_summary <- lifeexp_long %>%
+  group_by(Country) %>%
+  summarise(
+    Mean = mean(Life_Expectancy, na.rm = TRUE),
+    Minimum = min(Life_Expectancy, na.rm = TRUE),
+    Maximum = max(Life_Expectancy, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Mean))
+
+
+country_summary
+```
+
+
+The group_by() function organizes observations into groups based on selected variable. The summarise() function calculates summary statistics for each group, while arrange() sorts the results. In this example, these functions are used to calculate the average, minimum, and maximum life expectancy for each country between 2000 and 2024. Among the 12 selected countries, Japan had the highest average life expectancy at 83.09 years, followed by France at 81.50 years and Canada at 81.05 years. 
+
+
+```{r}
+# Calculate the change in life expectancy from 2019 to 2024
+lifeexp_change <- lifeexp_clean %>%
+  mutate(
+    Change_2019_2024 = `2024` - `2019`
+  ) %>%
+  select(Country, `2019`, `2024`, Change_2019_2024) %>%
+  arrange(desc(Change_2019_2024))
+
+
+lifeexp_change
+```
+
+
+The mutate() function creates a new variable by subtracting the 2019 life expectancy from the 2024 value. The arrange() function then sorts the countries from the largest increase to the largest decrease. The results show that Nigeria had the largest increase in life expectancy between 2019 and 2024 at 1.63 years, followed by India at 1.49 years. Germany had the largest decrease at 0.50 years, followed by Japan at 0.32 years. 
+
+## Conclusion
+
+This vignette demonstrated how to use Tidyverse functions to explore life expectancy data from the World Bank. The dplyr package was used to filter, select, summarize, and sort the data, while the tidyr package was used to reshape the dataset from wide to long format. The analysis showed differences in average life expectancy across the selected countries and changes between 2019 and 2024. Overall, these functions make it easier to organize, manipulate, and analyse data in R. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
