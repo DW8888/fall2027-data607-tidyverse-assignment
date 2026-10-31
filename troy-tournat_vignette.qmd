@@ -1,0 +1,226 @@
+---
+title: "Tidyverse Vignette Assignment, lubridate"
+author: "Troy Tournat"
+date: "`r paste(format(Sys.time(), '%Y-%m-%d'))`"
+format:
+  html:
+    theme: cosmo
+    df-print: paged
+    code-fold: false
+    toc: true
+    code-block-bg: true
+    code-block-border-left: "#ffb7c5" 
+    embed-resources: true
+    fontsize: 1.05em
+    linestretch: 1.7
+editor_options: 
+  chunk_output_type: inline
+---
+
+This vignette shows step by step instructions on how to use the lubridate function from the tidyverse 2.0 package with a short analysis.
+
+------------------------------------------------------------------------
+
+lubridate helps solve the issues that often occur when an R user works with dates and times. Specifically, it can identify & parse, extract & modify, perform accurate calculations, and works with time zones and daylight savings time better than base R. The package first published in 2011 by **Garrett Grolemund** & **Hadley Wickham.** Now, it is part of core tidyverse package (tidyverse 2.0) and you do not need to call out lubridate seperately.
+
+Additional tidyverse functions used in this vignette are: readr, dyplr, tidyr, ggplot2
+
+```{r, include=FALSE, warning=FALSE, message=FALSE}
+#working directory 
+#setwd("~/Desktop/CUNY/607-assignments")
+
+
+#locations 
+#input_location <- "~/Downloads/"
+location <- "~/Desktop/CUNY/607-assignments/projects/tidyverse/"
+
+#storing passwords 
+#usethis::edit_r_environ()
+
+
+```
+
+## Installation
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+
+#Install packages needed 
+pacman::p_load(
+  # Package Install and Management
+  pacman,           # package install/load
+  janitor,          #clean up data names 
+  skimr,
+  
+  #Vignette
+  tidyverse
+)
+  
+
+
+```
+
+## Usage
+
+The dataset used in this example is on dates when cherry blossoms began blooming in cities across Japan spanning from the year 1953 through 2025. For more information about this data or where it was downloaded please visit [kaggle.com](https://www.kaggle.com/datasets/ryanglasnapp/japanese-cherry-blossom-data?select=sakura_first_bloom_dates.csv)
+
+### Import the dataset
+
+After downloading the data, read the .csv file into R. Below compares the difference between using base R versus tidyverse's readr package.
+
+You can quickly see that using base R versus tidyverse (readr) shows the headers and dates differently. The base R import shows all date headers as 'X\[year\]' and cells as characters. Using readr keeps the date format (POSIXct and POSIXt).
+
+Knowing this is important for how you then use lubridate.
+
+```{r}
+
+
+#Base r: import 
+cherry_base <- read.csv(paste0(location, "sakura_first_bloom_dates.csv"), header=TRUE)
+head(cherry_base)
+class(cherry_base$X1953)
+
+#Tidyverse: import using readr 
+cherry_tidy <- readr::read_csv(paste0(location, "sakura_first_bloom_dates.csv"), show_col_types = FALSE)
+head(cherry_tidy)
+class(cherry_tidy$`1953`)
+
+```
+
+### Cleaning the data
+
+Before using lubridate for cleaning up the date variables, you can first clean up the headers using another tidyverse package, dplyr.
+
+In this case, rename the variables that have spaces and numbers in front. Then use janitor to clean the rest of the names.
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+
+#cleaning names  
+cherry <- cherry_tidy %>% 
+  dplyr::rename(thirty_yr_avg = `30 Year Average 1991-2020`)%>% #manually fix
+  dplyr::rename_with(\(nm) paste0("yr_", nm), .cols = matches("^\\d")) %>% #add year before date using shorthand where the columns match any single digit \\d
+  janitor::clean_names() #if we just used this we'd have xdate
+  #dplyr::rename_with(~ stringr::str_remove(.x, "^x(?=\\d)")) #get rid of x using shorthand for look for the variable x where the following are digits (?=\\d) and remove it str_remove. Or, just rename the other variables 
+
+head(names(cherry), 5)
+
+
+```
+
+### Modifying dates
+
+**You can clean the date formats quick and seamlessly with lubridate.**
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+#stay with a wide dataset 
+cherry_wide <- cherry 
+
+#current variable type
+class(cherry_wide$yr_2025) 
+
+#change using lubridate 
+cherry_wide$yr_2025_tidy <- lubridate::ymd(cherry_wide$yr_2025)
+
+#checks
+class(cherry_wide$yr_2025_tidy) 
+head(cherry_wide$yr_2025_tidy)
+
+```
+
+**You can also parse the data out in different ways. For instance, what if you want to know a week before the first blossoms happened across all cities that were observed last year.**
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+#parsed 
+cherry_wide$yr_2025_minus7<- cherry_wide$yr_2025_tidy - lubridate::weeks(1)
+
+head(cherry_wide$yr_2025_minus7)
+
+```
+
+**You can see the day of the year for the date**
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+#day of year 
+cherry_wide$yr_2025_yday <- lubridate::yday(cherry_wide$yr_2025_tidy)
+
+head(cherry_wide$yr_2025_yday)
+```
+
+**Or, you can transform the whole dataset to a long format so all dates are in one column and re-create the date, parsed, and day of the year variables in preparation for graphing.**
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+#transform the dataset from wide to long to see all dates in one column 
+cherry_long <- cherry %>%
+  tidyr::pivot_longer(
+    cols = starts_with("yr"),
+    names_to = "year",
+    names_transform = readr::parse_number,
+    values_to = "first_bloom")
+
+
+#modify dates 
+cherry_long$first_bloom <- lubridate::ymd(cherry_long$first_bloom)
+
+#parse 
+cherry_long$arrive_for_bloom <- cherry_long$first_bloom - lubridate::day(2)
+
+#day of the year 
+cherry_long$day_of_year <- lubridate::yday(cherry_long$first_bloom)
+
+head(cherry_long)
+```
+
+**Now, you can answer a variety of analysis questions such as what is the average day of the first bloom by year across Japan? And what is the average day of the first bloom by year across four cities in Japan?**
+
+```{r include=TRUE, warning=FALSE, message=FALSE}
+
+# what is the average day of the first bloom by year across Japan
+cherry_year_avg <- cherry_long |>
+  dplyr::group_by(year) |>
+  dplyr::summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
+
+ggplot2::ggplot(cherry_year_avg, ggplot2::aes(x = year, y = avg_bloom_doy)) +
+  ggplot2::geom_line(color = "#e8c8d9") +
+  ggplot2::geom_smooth(se = FALSE, color = "#9e4a69") +
+  ggplot2::labs(x = "Year", y = "Average first bloom (day of year)")
+
+
+# what is the average day of the first bloom by year across four cities in Japan
+cherry_year_avg_site <- cherry_long |>
+  dplyr::group_by(year, site_name) |>
+  dplyr::summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
+
+cherry_year_avg_site |>
+  dplyr::filter(site_name %in% c("Kyoto", "Tokyo", "Osaka", "Nara")) |>
+  ggplot2::ggplot(ggplot2::aes(x = year, y = avg_bloom_doy, color = site_name)) +
+  ggplot2::geom_smooth(se = FALSE) +
+  ggplot2::scale_color_manual(
+    values = c("Kyoto" = "#f2a9a9", "Tokyo" = "#90a3cf", "Osaka" = "#8d9f9a", "Nara" = "#604343")
+  ) +
+  ggplot2::labs(x = "Year", y = "Average first bloom (day of year)", color = "Site Name")
+```
+
+With the cleaned dates, we can easily see that the average first bloom across all sites in Japan has decreased since the 1970's from April 10th (100th day) to March 26th (85th day). If we look at four of the most popular sites we see on average Tokyo has the earliest bloom in mid-March and Nara has the latest towards the end of March.
+
+**And when you save, you can add the current date to the file.**
+
+```{r}
+# when saving file
+date <- lubridate::today()
+
+readr::write_csv(cherry_year_avg_site, file.path(location, paste0("cherry_blossoms_", date, ".csv")))
+
+```
+
+## Acknowledgements
+
+- Glasnapp, R. (2025). *Japanese cherry blossom data* \[Data set\]. Kaggle. <https://www.kaggle.com/datasets/ryanglasnapp/japanese-cherry-blossom-data>
+
+- Grolemund, G., & Wickham, H. . (2011). Dates and Times Made Easy with lubridate. *Journal of Statistical Software*, *40*(3), 1–25. https://doi.org/10.18637/jss.v040.i03
+
+- Anthropic. (2025). Claude Opus 4.5 \[Large language model\]. (https://claude.ai/) Accessed October 29, 2026. <https://claude.ai/share/3e4ea994-3dd5-4a2d-b0ad-cbda7d0d5c92>

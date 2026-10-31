@@ -87,7 +87,7 @@ Do not submit work to the previous course repository. Use this repository for th
 
 | Author | Vignette | Packages / Functions | Dataset | What It Demonstrates |
 | --- | --- | --- | --- | --- |
-| Your Name | [your_vignette.qmd](your_vignette.qmd) | dplyr::filter(), dplyr::mutate(), ggplot2::ggplot() | [Dataset source](https://example.com) | A brief description of your analysis and techniques. |
+| Troy Tournat | [troy-tournat_vignette.qmd](troy-tournat_vignette.qmd) | lubridate::weeks(), lubridate::yday(), lubridate::ymd(), lubridate::day(), lubridate::today() | [Japanese cherry blossom data](https://www.kaggle.com/datasets/ryanglasnapp/japanese-cherry-blossom-data) | This vignette shows step by step instructions on how to use the lubridate function from the tidyverse 2.0 package with a short analysis using Japanese cherry blossom data from 1953 - 2025. Additional tidyverse functions used in this vignette are: readr, dyplr, tidyr, ggplot2 |
 
 
 
