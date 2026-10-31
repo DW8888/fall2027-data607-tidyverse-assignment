@@ -23,7 +23,7 @@ This vignette shows step by step instructions on how to use the lubridate functi
 
 lubridate helps solve the issues that often occur when an R user works with dates and times. Specifically, it can identify & parse, extract & modify, perform accurate calculations, and works with time zones and daylight savings time better than base R. The package first published in 2011 by **Garrett Grolemund** & **Hadley Wickham.** Now, it is part of core tidyverse package (tidyverse 2.0) and you do not need to call out lubridate seperately.
 
-Additional tidyverse functions used in this vignette are: readr, dyplr, ggplot2
+Additional tidyverse functions used in this vignette are: readr, dyplr, tidyr, ggplot2
 
 ```{r, include=FALSE, warning=FALSE, message=FALSE}
 #working directory 
@@ -134,7 +134,7 @@ head(cherry_wide$yr_2025_tidy)
 ```{r include=TRUE, warning=FALSE, message=FALSE}
 
 #parsed 
-cherry_wide$yr_2025_minus7<- cherry_wide$yr_2025_tidy - weeks(1)
+cherry_wide$yr_2025_minus7<- cherry_wide$yr_2025_tidy - lubridate::weeks(1)
 
 head(cherry_wide$yr_2025_minus7)
 
@@ -156,7 +156,7 @@ head(cherry_wide$yr_2025_yday)
 
 #transform the dataset from wide to long to see all dates in one column 
 cherry_long <- cherry %>%
-  pivot_longer(
+  tidyr::pivot_longer(
     cols = starts_with("yr"),
     names_to = "year",
     names_transform = readr::parse_number,
@@ -167,7 +167,7 @@ cherry_long <- cherry %>%
 cherry_long$first_bloom <- lubridate::ymd(cherry_long$first_bloom)
 
 #parse 
-cherry_long$arrive_for_bloom <- cherry_long$first_bloom - day(2)
+cherry_long$arrive_for_bloom <- cherry_long$first_bloom - lubridate::day(2)
 
 #day of the year 
 cherry_long$day_of_year <- lubridate::yday(cherry_long$first_bloom)
@@ -179,33 +179,30 @@ head(cherry_long)
 
 ```{r include=TRUE, warning=FALSE, message=FALSE}
 
-
-#what is the average day of the first bloom by year across Japan
+# what is the average day of the first bloom by year across Japan
 cherry_year_avg <- cherry_long |>
-  group_by(year) |>
-  summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
+  dplyr::group_by(year) |>
+  dplyr::summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
 
-ggplot(cherry_year_avg, aes(x = year, y = avg_bloom_doy)) +
-  geom_line(color = "#e8c8d9") +
-  geom_smooth(se = FALSE, color = "#9e4a69") +
-  labs(x = "Year", y = "Average first bloom (day of year)")
+ggplot2::ggplot(cherry_year_avg, ggplot2::aes(x = year, y = avg_bloom_doy)) +
+  ggplot2::geom_line(color = "#e8c8d9") +
+  ggplot2::geom_smooth(se = FALSE, color = "#9e4a69") +
+  ggplot2::labs(x = "Year", y = "Average first bloom (day of year)")
 
 
-#what is the average day of the first bloom by year across four cities in Japan
+# what is the average day of the first bloom by year across four cities in Japan
 cherry_year_avg_site <- cherry_long |>
-  group_by(year, site_name) |>
-  summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
+  dplyr::group_by(year, site_name) |>
+  dplyr::summarise(avg_bloom_doy = mean(day_of_year, na.rm = TRUE), .groups = "drop")
 
 cherry_year_avg_site |>
-  filter(site_name %in% c("Kyoto", "Tokyo", "Osaka", "Nara")) |>
-  ggplot(aes(x = year, y = avg_bloom_doy, color = site_name)) +
-  geom_smooth(se = FALSE) +
-  scale_color_manual(
+  dplyr::filter(site_name %in% c("Kyoto", "Tokyo", "Osaka", "Nara")) |>
+  ggplot2::ggplot(ggplot2::aes(x = year, y = avg_bloom_doy, color = site_name)) +
+  ggplot2::geom_smooth(se = FALSE) +
+  ggplot2::scale_color_manual(
     values = c("Kyoto" = "#f2a9a9", "Tokyo" = "#90a3cf", "Osaka" = "#8d9f9a", "Nara" = "#604343")
   ) +
-  labs(x = "Year", y = "Average first bloom (day of year)", color ="Site Name")
-
-  
+  ggplot2::labs(x = "Year", y = "Average first bloom (day of year)", color = "Site Name")
 ```
 
 With the cleaned dates, we can easily see that the average first bloom across all sites in Japan has decreased since the 1970's from April 10th (100th day) to March 26th (85th day). If we look at four of the most popular sites we see on average Tokyo has the earliest bloom in mid-March and Nara has the latest towards the end of March.
@@ -213,11 +210,10 @@ With the cleaned dates, we can easily see that the average first bloom across al
 **And when you save, you can add the current date to the file.**
 
 ```{r}
-
-#when saving file
+# when saving file
 date <- lubridate::today()
 
-write_csv(cherry_year_avg_site, file.path(location, paste0( "cherry_blossoms_", date, ".csv")))
+readr::write_csv(cherry_year_avg_site, file.path(location, paste0("cherry_blossoms_", date, ".csv")))
 
 ```
 
