@@ -1,0 +1,440 @@
+---
+title: "Exploring Vehicle Fuel Efficiency with Tidyverse"
+author: "Patricio Romero"
+date: "2026-10-31"
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    embed-resources: true
+    css: styles.css
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Introduction
+
+This vignette demonstrates how to use Tidyverse functions to explore vehicle fuel efficiency.
+
+The dataset is `mpg`, included in the `ggplot2` package. It contains vehicle fuel economy information originally collected by the U.S. Environmental Protection Agency.
+
+I will use `dplyr` to clean and summarize the data and `ggplot2` to create visualizations.
+
+The dataset contains 234 vehicle configurations from the 1999 and 2008 model years. The original `mpg` data remains unchanged; only the display names in the analysis tables are standardized.
+
+## Load Packages and Data
+
+```{r load-data}
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(stringr)
+
+# Load the original vehicle fuel economy dataset.
+# Keep the original mpg data unchanged for reproducibility.
+data("mpg", package = "ggplot2")
+
+# Standardize display names in tables and charts.
+# This does not change the original dataset or numerical values.
+format_vehicle_names <- function(data) {
+  data %>%
+    mutate(
+      manufacturer = str_to_title(manufacturer),
+      model = str_to_title(model),
+      model = str_replace_all(model, regex("\\b4wd\\b", ignore_case = TRUE), "4WD"),
+      model = str_replace_all(model, regex("\\bawd\\b", ignore_case = TRUE), "AWD"),
+      class = recode(
+        class,
+        "2seater" = "Two Seater",
+        "compact" = "Compact",
+        "midsize" = "Mid-Size",
+        "minivan" = "Minivan",
+        "pickup" = "Pickup",
+        "subcompact" = "Subcompact",
+        "suv" = "SUV"
+      )
+    )
+}
+
+# Show the number of rows and columns
+
+# Display dataset dimensions in a clear table
+dataset_summary <- data.frame(
+  Description = c(
+    "Total Vehicle Records",
+    "Total Variables"
+  ),
+  Value = c(
+    nrow(mpg),
+    ncol(mpg)
+  )
+)
+
+knitr::kable(
+  dataset_summary,
+  col.names = c("Dataset Information", "Count"),
+  caption = "Vehicle Fuel Economy Dataset Summary",
+  row.names = FALSE
+)
+
+# Display the first six records
+
+# Show a reader-friendly preview without changing mpg.
+mpg_preview <- mpg %>% format_vehicle_names()
+
+knitr::kable(
+  head(mpg_preview, 6),
+  col.names = c(
+    "Manufacturer",
+    "Vehicle Model",
+    "Engine Size (L)",
+    "Model Year",
+    "Cylinders",
+    "Transmission",
+    "Drive Type",
+    "City MPG",
+    "Highway MPG",
+    "Fuel Type",
+    "Vehicle Class"
+  ),
+  caption = "Vehicle Fuel Economy Dataset",
+  row.names = FALSE
+)
+
+```
+
+## Data Cleaning and Transformation
+
+The main variables are **Manufacturer**, **Vehicle Model**, **Model Year**, **Cylinders**, **City MPG**, **Highway MPG**, and **Vehicle Class**. MPG means *miles per gallon*, not miles per hour. The original variable names used in R (`cty`, `hwy`, `cyl`, and `class`) are retained so the analysis code remains reproducible.
+
+In this section, I use `dplyr` functions to select, filter, and transform vehicle fuel economy data.
+
+The functions demonstrated are `select()`, `filter()`, `mutate()`, and `arrange()`.
+
+### Select Variables
+
+The `select()` function keeps only the variables needed for the analysis. I also standardize manufacturer, model, and vehicle-class names once, so all later tables and charts use the same labels.
+
+```{r select-variables}
+vehicles <- mpg %>%
+  select(manufacturer, model, year, cyl, cty, hwy, class) %>%
+  format_vehicle_names()
+
+knitr::kable(
+  head(vehicles, 10),
+  col.names = c(
+    "Manufacturer", "Vehicle Model", "Model Year",
+    "Cylinders", "City MPG", "Highway MPG",
+    "Vehicle Class"
+  ),
+  caption = "Selected Vehicle Variables",
+  row.names = FALSE
+)
+```
+
+### Filter Vehicles
+
+The `filter()` function selects rows that meet a specific condition.
+
+Here, I select vehicles with highway fuel efficiency of at least 30 miles per gallon.
+
+```{r filter-vehicles}
+efficient_vehicles <- vehicles %>%
+  filter(hwy >= 30) %>%
+  arrange(desc(hwy))
+
+knitr::kable(
+  head(efficient_vehicles, 10),
+  col.names = c(
+    "Manufacturer", "Vehicle Model", "Model Year",
+    "Cylinders", "City MPG", "Highway MPG",
+    "Vehicle Class"
+  ),
+  caption = "Vehicles with Highway MPG of at Least 30",
+  row.names = FALSE
+)
+```
+
+### Create a New Variable
+
+The `mutate()` function creates a new variable.
+
+I calculate the difference between highway and city fuel efficiency.
+
+```{r mutate-vehicles}
+vehicles_clean <- vehicles %>%
+  mutate(mpg_difference = hwy - cty) %>%
+  arrange(desc(mpg_difference))
+
+knitr::kable(
+  head(vehicles_clean, 10),
+  col.names = c(
+    "Manufacturer",
+    "Vehicle Model",
+    "Model Year",
+    "Cylinders",
+    "City MPG",
+    "Highway MPG",
+    "Vehicle Class",
+    "MPG Difference"
+  ),
+  caption = "Highway and City Fuel Efficiency Difference",
+  row.names = FALSE
+)
+```
+
+
+### Interpretation
+
+I used `select()` to keep the most useful variables and `filter()` to identify vehicles with higher highway fuel efficiency.
+
+I also used `mutate()` to calculate the difference between highway and city MPG. Vehicle classes and manufacturer names are displayed consistently throughout the vignette. Finally, `arrange()` helped organize the results.
+
+These steps demonstrate how Tidyverse functions can prepare data for analysis.
+
+
+## Data Summary
+
+In this section, I use `dplyr` to summarize vehicle fuel efficiency by vehicle class.
+
+The functions demonstrated are `group_by()`, `summarise()`, and `arrange()`.
+
+### Average Fuel Efficiency by Vehicle Class
+
+The `group_by()` function groups vehicles by class. The `summarise()` function calculates the average city and highway MPG for each group.
+
+```{r summary-by-class}
+fuel_summary <- vehicles_clean %>%
+  group_by(class) %>%
+  summarise(
+    number_of_vehicles = n(),
+    average_city_mpg = round(mean(cty, na.rm = TRUE), 2),
+    average_highway_mpg = round(mean(hwy, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(average_highway_mpg))
+
+knitr::kable(
+  fuel_summary,
+  col.names = c(
+    "Vehicle Class",
+    "Number of Vehicles",
+    "Average City MPG",
+    "Average Highway MPG"
+  ),
+  caption = "Average Fuel Efficiency by Vehicle Class",
+  row.names = FALSE
+)
+```
+
+### Identify the Most Fuel-Efficient Vehicle Classes
+
+The `slice_head()` function selects the first three rows after sorting the results.
+
+```{r most-efficient-classes}
+top_classes <- fuel_summary %>%
+  slice_head(n = 3)
+
+knitr::kable(
+  top_classes,
+  col.names = c(
+    "Vehicle Class",
+    "Number of Vehicles",
+    "Average City MPG",
+    "Average Highway MPG"
+  ),
+  caption = "Three Most Fuel-Efficient Vehicle Classes",
+  row.names = FALSE
+)
+```
+
+### Interpretation
+
+The summary compares average fuel efficiency across different vehicle classes.
+
+The vehicle classes with higher average highway MPG are more fuel-efficient on the highway.
+
+This analysis demonstrates how `group_by()`, `summarise()`, and `arrange()` can be used to organize and compare data.
+
+
+## Data Visualization
+
+In this section, I use the `ggplot2` package to visualize vehicle fuel efficiency. These charts help compare highway and city MPG across different vehicle classes.
+
+### Average Highway MPG by Vehicle Class
+
+The `ggplot()` function creates a chart, while `geom_col()` displays the average highway MPG for each vehicle class. Each bar has its own color and a value label.
+
+```{r highway-mpg-chart}
+ggplot(
+  fuel_summary,
+  aes(
+    x = reorder(class, average_highway_mpg),
+    y = average_highway_mpg,
+    fill = class
+  )
+) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+
+  # Show MPG values next to each bar
+  geom_text(
+    aes(label = sprintf("%.1f MPG", average_highway_mpg)),
+    hjust = -0.15,
+    size = 3.8,
+    fontface = "bold"
+  ) +
+
+  coord_flip() +
+
+  # Add space for the MPG labels
+  scale_y_continuous(
+    expand = expansion(mult = c(0, 0.22))
+  ) +
+
+  # Use different colors for vehicle classes
+  scale_fill_brewer(palette = "Set2") +
+
+  labs(
+    title = "Average Highway Fuel Efficiency",
+    subtitle = "Comparison by Vehicle Class",
+    x = "Vehicle Class",
+    y = "Average Highway MPG",
+    caption = "Source: ggplot2 mpg dataset (EPA fuel economy data)"
+  ) +
+
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 11),
+    axis.text.y = element_text(face = "bold"),
+    panel.grid.major.y = element_blank(),
+    legend.position = "none"
+  )
+```
+
+### City MPG vs. Highway MPG
+
+The `geom_point()` function creates a scatter plot to compare city and highway MPG for each vehicle configuration. Colors represent the vehicle class.
+
+
+```{r city-highway-chart}
+ggplot(
+  vehicles_clean,
+  aes(
+    x = cty,
+    y = hwy,
+    color = class
+  )
+) +
+  geom_point(
+    size = 2.8,
+    alpha = 0.75
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(
+    title = "City vs. Highway Fuel Efficiency",
+    subtitle = "Comparison by Vehicle Class",
+    x = "City Fuel Efficiency (MPG)",
+    y = "Highway Fuel Efficiency (MPG)",
+    color = "Vehicle Class",
+    caption = "Source: ggplot2 mpg dataset"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 15
+    ),
+    legend.position = "right"
+  )
+```
+
+### Interpretation
+
+The first chart compares average highway fuel efficiency across vehicle classes. Classes with higher average MPG have better highway fuel efficiency.
+
+The second chart shows the relationship between city and highway MPG. Vehicles with higher city MPG generally also have higher highway MPG.
+
+These visualizations demonstrate how `ggplot2` helps identify patterns and compare numerical variables.
+
+## Project Development Process
+
+I developed this vignette using RStudio and Quarto.
+
+First, I selected the `mpg` dataset from the `ggplot2` package. The dataset contains 234 vehicle records and 11 variables.
+
+Next, I used `dplyr` to select important variables, filter vehicles, and calculate the difference between city and highway MPG.
+
+I then used `group_by()` and `summarise()` to compare average fuel efficiency across vehicle classes.
+
+After that, I created two visualizations using `ggplot2`. The first compares average highway MPG by vehicle class, and the second shows the relationship between city and highway MPG.
+
+Finally, I reviewed the tables, labels, and results to make the example clear and easy to understand.
+
+The code is organized step by step so classmates can reproduce the analysis and learn how to use Tidyverse functions.
+
+## Results and Discussion
+
+The dataset contains 234 vehicle records and 11 variables.
+
+I used several Tidyverse functions to explore vehicle fuel efficiency.
+
+- `select()` helped me choose the variables needed for analysis.
+- `filter()` identified vehicles with at least 30 highway MPG.
+- `mutate()` standardized display labels and created a variable to compare city and highway MPG.
+- `group_by()` and `summarise()` calculated average fuel efficiency by vehicle class.
+- `arrange()` organized the results.
+- `ggplot()` created charts to visualize the data.
+
+### Summary of Results
+
+```{r final-summary}
+# Calculate overall fuel efficiency
+overall_summary <- vehicles_clean %>%
+  summarise(
+    total_vehicles = n(),
+    average_city_mpg = round(mean(cty, na.rm = TRUE), 2),
+    average_highway_mpg = round(mean(hwy, na.rm = TRUE), 2)
+  )
+
+knitr::kable(
+  overall_summary,
+  col.names = c(
+    "Total Vehicles",
+    "Average City MPG",
+    "Average Highway MPG"
+  ),
+  caption = "Overall Vehicle Fuel Efficiency Summary",
+  row.names = FALSE
+)
+```
+
+### Discussion
+
+The results show differences in fuel efficiency across vehicle classes.
+
+The charts also show that vehicles with higher city MPG generally have higher highway MPG.
+
+These results help explain how Tidyverse functions can be used to organize, summarize, and visualize a dataset.
+
+## Conclusion
+
+In this vignette, I used the `mpg` dataset from the `ggplot2` package to practice data analysis with Tidyverse.
+
+I learned how to select variables, filter records, create new columns, calculate group averages, and create visualizations.
+
+This project helped me better understand how Tidyverse functions work together to analyze real-world data.
+
+## AI Use
+
+ChatGPT was used to help understand the assignment requirements, organize the vignette, improve the English writing, and provide guidance on Tidyverse functions and R code.
+
+I reviewed the dataset, code, tables, and visualizations to better understand the analysis.
+
+## References
+
+- Wickham, H., et al. *ggplot2: mpg dataset documentation*. https://ggplot2.tidyverse.org/reference/mpg.html
+- U.S. Environmental Protection Agency. *Fuel Economy Data*. https://www.fueleconomy.gov/
