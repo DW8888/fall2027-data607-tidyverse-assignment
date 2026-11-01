@@ -85,9 +85,12 @@ Do not submit work to the previous course repository. Use this repository for th
 
 
 
+
 | Author | Vignette | Packages / Functions | Dataset | What It Demonstrates |
 | --- | --- | --- | --- | --- |
-| Your Name | [your_vignette.qmd](your_vignette.qmd) | dplyr::filter(), dplyr::mutate(), ggplot2::ggplot() | [Dataset source](https://example.com) | A brief description of your analysis and techniques. |
+| Patricio Romero | [Exploring Vehicle Fuel Efficiency with Tidyverse](vehicle_fuel_efficiency_tidyverse.qmd) | dplyr::select(), dplyr::filter(), dplyr::mutate(), dplyr::group_by(), dplyr::summarise(), ggplot2::ggplot(), ggplot2::geom_col(), ggplot2::geom_point(), stringr::str_to_title() | [ggplot2 mpg dataset](https://ggplot2.tidyverse.org/reference/mpg.html) | Cleans and transforms vehicle data, compares city and highway MPG, summarizes fuel efficiency by vehicle class, and creates visualizations. |
+
+
 
 
 
