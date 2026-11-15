@@ -1,0 +1,1220 @@
+---
+title: "Extending Laptop Price Analysis Using Tidyverse"
+subtitle: "DATA 607 - Tidyverse EXTEND Assignment"
+author: "Patricio Romero"
+date: "2026-11-15"
+
+format:
+  html:
+    toc: true
+    number-sections: true
+    code-fold: true
+    code-summary: "Show code"
+    embed-resources: true
+    theme: cosmo
+    css: Patricio_Romero_Laptop_styles.css
+
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+
+# Introduction
+
+This project extends Andre Thomson's original vignette,
+[Laptop Prices with Tidyverse](https://github.com/DW8888/fall2027-data607-tidyverse-assignment/blob/main/Andre_Thomson_Laptop_Prices_Tidyverse.qmd).
+
+The original project used Tidyverse functions to clean
+laptop data, compare prices by category, and identify
+laptops that meet specific RAM and storage requirements.
+
+This extension explores how laptop prices vary by brand
+and hardware specifications. Additional Tidyverse
+functions, data transformations, and visualizations
+are used to better understand these relationships.
+
+# Research Questions
+
+1. How do laptop prices vary across brands?
+
+2. How does RAM capacity relate to laptop prices?
+
+3. How does storage capacity relate to laptop prices?
+
+4. How does CPU core count relate to laptop prices?
+
+5. Which combinations of RAM and storage are associated
+   with higher laptop prices?
+
+# Data Source
+
+This extension uses the same dataset as the original
+vignette created by Andre Thomson.
+
+- Dataset: Laptops Cleaned Dataset
+- Source: [Kaggle](https://www.kaggle.com/datasets/githubmasterin/laptops-cleaned-dataset)
+- File: `Andre_Thomson_laptops.csv`
+- Observations: 992
+- Variables: 27
+- Currency: Indian Rupees (INR)
+
+Using the same dataset allows this extension to build
+on the original analysis while exploring additional
+relationships.
+
+# Load Packages
+
+The Tidyverse package is used to import, clean,
+transform, and visualize the data. The knitr package
+is used to display tables.
+
+```{r}
+#| label: load-packages
+
+library(tidyverse)
+library(knitr)
+library(scales)
+```
+
+# Data Import
+
+The original dataset is imported using the `read_csv()`
+function from the `readr` package.
+
+The original data remains unchanged. The following
+tables show the dataset size and a preview of the main
+variables used in this extension.
+
+```{r}
+#| label: data-import
+
+# Import the original laptop dataset
+laptops_raw <- read_csv(
+  "Andre_Thomson_laptops.csv",
+  show_col_types = FALSE
+)
+
+# Display dataset dimensions
+dataset_summary <- tibble(
+  Description = c(
+    "Total Laptop Records",
+    "Total Variables"
+  ),
+  Value = c(
+    nrow(laptops_raw),
+    ncol(laptops_raw)
+  )
+)
+
+knitr::kable(
+  dataset_summary,
+  col.names = c("Dataset Information", "Count"),
+  caption = "Laptop Dataset Summary",
+  row.names = FALSE
+)
+
+# Select the main variables for the preview
+laptops_preview <- laptops_raw |>
+  select(
+    brand,
+    model,
+    device_category,
+    price,
+    ram_gb,
+    storage_gb,
+    cpu_core_count
+  ) |>
+  mutate(
+    brand = str_to_title(brand),
+    brand = if_else(brand == "Hp", "HP", brand),
+    price = comma(price)
+  )
+
+# Display the first six laptop records
+knitr::kable(
+  head(laptops_preview, 6),
+  col.names = c(
+    "Brand",
+    "Laptop Model",
+    "Device Category",
+    "Price (INR)",
+    "RAM (GB)",
+    "Storage (GB)",
+    "CPU Cores"
+  ),
+  caption = "Laptop Dataset Preview",
+  row.names = FALSE
+)
+```
+
+# Data Validation (QA/QC)
+
+Before starting the analysis, I check the quality of
+the dataset to identify missing values and duplicate
+records.
+
+## Dataset Quality Overview
+
+```{r}
+#| label: dataset-quality
+
+# Check the quality of the original dataset
+data_quality <- tibble(
+  Description = c(
+    "Total Laptop Records",
+    "Total Variables",
+    "Total Data Values",
+    "Missing Values",
+    "Duplicate Records"
+  ),
+  Value = c(
+    nrow(laptops_raw),
+    ncol(laptops_raw),
+    nrow(laptops_raw) * ncol(laptops_raw),
+    sum(is.na(laptops_raw)),
+    sum(duplicated(laptops_raw))
+  )
+)
+
+knitr::kable(
+  data_quality,
+  col.names = c("Dataset Information", "Count"),
+  caption = "Dataset Quality Overview",
+  row.names = FALSE,
+  format.args = list(big.mark = ",")
+)
+```
+
+## Missing Values Analysis
+
+The following table shows the variables with missing
+values and the percentage of missing data. Variable
+names are formatted to make the table easier to read.
+
+```{r}
+#| label: missing-values
+
+# Identify missing values by variable
+missing_summary <- laptops_raw |>
+  summarise(
+    across(everything(), ~ sum(is.na(.x)))
+  ) |>
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "missing_values"
+  ) |>
+  filter(missing_values > 0) |>
+  mutate(
+    missing_percentage = round(
+      missing_values / nrow(laptops_raw) * 100, 2
+    ),
+
+    # Standardize variable names for presentation
+    variable = recode(
+      variable,
+      "cpu_lp_e_cores" = "CPU Low-Power E-Cores",
+      "gpu_vram_gb" = "GPU VRAM (GB)",
+      "cpu_e_cores" = "CPU Efficiency Cores",
+      "cpu_p_cores" = "CPU Performance Cores",
+      "cpu_suffix" = "CPU Suffix",
+      "gpu_brand" = "GPU Brand",
+      "gpu_series" = "GPU Series",
+      "gpu_model" = "GPU Model",
+      "gpu_type" = "GPU Type"
+    )
+  ) |>
+  arrange(desc(missing_values))
+
+knitr::kable(
+  missing_summary,
+  col.names = c(
+    "Variable",
+    "Missing Values",
+    "Missing Percentage (%)"
+  ),
+  caption = "Missing Values by Variable",
+  row.names = FALSE,
+  digits = 2
+)
+```
+
+## Interpretation
+
+The dataset contains 992 laptop records and 27 variables.
+There are 2,289 missing values and no duplicate records.
+
+Most missing values are related to CPU and GPU details.
+However, the main variables selected for this extension
+have no missing values.
+
+For this reason, I can continue the analysis without
+removing laptop records.
+
+## Visualizing Missing Values
+
+This chart helps identify the variables with the
+highest percentage of missing data.
+
+```{r}
+#| label: missing-values-chart
+#| fig-width: 9
+#| fig-height: 5
+
+ggplot(
+  missing_summary,
+  aes(
+    x = reorder(variable, missing_percentage),
+    y = missing_percentage
+  )
+) +
+  geom_col(
+    fill = "steelblue",
+    width = 0.7
+  ) +
+  geom_text(
+    aes(label = paste0(missing_percentage, "%")),
+    hjust = -0.15,
+    size = 3.8,
+    fontface = "bold"
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(0, 100)
+  ) +
+  labs(
+    title = "Missing Values by Variable",
+    subtitle = "Laptop Prices Dataset",
+    x = "Variable",
+    y = "Missing Percentage (%)",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+# Data Cleaning and Transformation
+
+In this section, I use Tidyverse functions to prepare
+the data for further analysis.
+
+The original dataset remains unchanged.
+
+## Select Variables and Standardize Names
+
+The `select()` function keeps the variables needed
+for this analysis. The `mutate()` function is used
+to standardize laptop brand names.
+
+```{r}
+#| label: select-variables
+
+# Select the main variables
+laptops_clean <- laptops_raw |>
+  select(
+    brand,
+    model,
+    device_category,
+    price,
+    ram_gb,
+    storage_gb,
+    cpu_core_count
+  ) |>
+  mutate(
+    brand = str_to_title(brand),
+    brand = recode(
+      brand,
+      "Hp" = "HP",
+      "Asus" = "ASUS",
+      "Msi" = "MSI"
+    )
+  )
+
+# Display the selected variables
+knitr::kable(
+  head(laptops_clean, 10),
+  col.names = c(
+    "Brand",
+    "Laptop Model",
+    "Device Category",
+    "Price (INR)",
+    "RAM (GB)",
+    "Storage (GB)",
+    "CPU Cores"
+  ),
+  caption = "Selected Laptop Variables",
+  row.names = FALSE,
+  format.args = list(big.mark = ",")
+)
+```
+
+## Currency Conversion (INR to USD)
+
+The original laptop prices are in Indian Rupees (INR).
+I use the `mutate()` function to create a new variable
+with prices in US Dollars (USD).
+
+The conversion uses the 2025 average exchange rate
+of 87.1468 INR per USD.
+
+```{r}
+#| label: currency-conversion
+
+# Set the 2025 average exchange rate
+exchange_rate <- 87.1468
+
+# Convert laptop prices to US Dollars
+laptops_clean <- laptops_clean |>
+  mutate(
+    price_usd = price / exchange_rate
+  ) |>
+  relocate(price_usd, .after = price)
+
+# Display the converted prices
+laptops_clean |>
+  head(10) |>
+  mutate(
+    price = scales::comma(price),
+    price_usd = scales::dollar(price_usd, accuracy = 0.01)
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Brand",
+      "Laptop Model",
+      "Device Category",
+      "Price (INR)",
+      "Price (USD)",
+      "RAM (GB)",
+      "Storage (GB)",
+      "CPU Cores"
+    ),
+    caption = "Laptop Prices in INR and USD",
+    row.names = FALSE
+  )
+```
+
+Source: [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/series/AEXINUS).
+
+## Interpretation
+
+I used `select()` to keep the main variables and
+`mutate()` to standardize brand names and convert
+prices to US Dollars.
+
+I also used `relocate()` to place both price
+variables next to each other.
+
+This transformation makes the prices easier to
+understand and compare. The USD values are estimates
+of the original prices in India.
+
+# Laptop Price Analysis by Brand
+
+In this section, I compare laptop prices across
+different brands.
+
+The `group_by()` and `summarise()` functions are
+used to calculate the number of laptops and their
+average, median, minimum, and maximum prices.
+
+## Price Summary by Brand
+
+```{r}
+#| label: price-summary-by-brand
+
+# Calculate price statistics by brand
+brand_summary <- laptops_clean |>
+  group_by(brand) |>
+  summarise(
+    total_laptops = n(),
+    average_price = mean(price_usd),
+    median_price = median(price_usd),
+    minimum_price = min(price_usd),
+    maximum_price = max(price_usd),
+    .groups = "drop"
+  ) |>
+  arrange(desc(median_price))
+
+# Display the price summary
+brand_summary |>
+  mutate(
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Brand",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)",
+      "Minimum Price (USD)",
+      "Maximum Price (USD)"
+    ),
+    caption = "Laptop Price Summary by Brand",
+    row.names = FALSE
+  )
+```
+
+## Top 10 Most Common Laptop Brands
+
+The `slice_max()` function selects the ten brands
+with the highest number of laptop records.
+
+```{r}
+#| label: top-laptop-brands
+
+# Select the ten most common brands
+top_brands <- brand_summary |>
+  slice_max(
+    order_by = total_laptops,
+    n = 10,
+    with_ties = FALSE
+  ) |>
+  arrange(desc(total_laptops))
+
+# Display the most common brands
+top_brands |>
+  select(
+    brand,
+    total_laptops,
+    average_price,
+    median_price
+  ) |>
+  mutate(
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Brand",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)"
+    ),
+    caption = "Top 10 Most Common Laptop Brands",
+    row.names = FALSE
+  )
+```
+
+## Median Laptop Price by Brand
+
+The median price is used because it is less affected
+by very high or very low prices.
+
+The `fct_reorder()` function organizes the brands
+based on their median prices.
+
+```{r}
+#| label: median-price-by-brand
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(
+  top_brands,
+  aes(
+    x = fct_reorder(brand, median_price),
+    y = median_price,
+    fill = brand
+  )
+) +
+  geom_col(
+    width = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_text(
+    aes(
+      label = scales::dollar(
+        median_price,
+        accuracy = 1
+      )
+    ),
+    hjust = -0.15,
+    size = 4,
+    fontface = "bold"
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    labels = scales::label_dollar(),
+    expand = expansion(mult = c(0, 0.25))
+  ) +
+  scale_fill_brewer(palette = "Paired") +
+  labs(
+    title = "Median Laptop Price by Brand",
+    subtitle = "Comparison of the Top 10 Most Common Brands",
+    x = "Laptop Brand",
+    y = "Median Price (USD)",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    axis.text.y = element_text(face = "bold"),
+    panel.grid.major.y = element_blank()
+  )
+```
+
+# RAM and Laptop Price Analysis
+
+In this section, I explore how laptop prices vary
+by RAM capacity.
+
+I use the `group_by()` and `summarise()` functions
+to compare laptop prices across different RAM sizes.
+
+## Price Summary by RAM Capacity
+
+```{r}
+#| label: price-summary-by-ram
+
+# Calculate price statistics by RAM capacity
+ram_summary <- laptops_clean |>
+  group_by(ram_gb) |>
+  summarise(
+    total_laptops = n(),
+    average_price = mean(price_usd),
+    median_price = median(price_usd),
+    minimum_price = min(price_usd),
+    maximum_price = max(price_usd),
+    .groups = "drop"
+  ) |>
+  arrange(ram_gb)
+
+# Display the RAM price summary
+ram_summary |>
+  mutate(
+    ram_gb = paste(ram_gb, "GB"),
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "RAM Capacity",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)",
+      "Minimum Price (USD)",
+      "Maximum Price (USD)"
+    ),
+    caption = "Laptop Price Summary by RAM Capacity",
+    row.names = FALSE
+  )
+```
+
+## Laptop Price Distribution by RAM
+
+The `geom_boxplot()` function shows the distribution
+of laptop prices for each RAM capacity.
+
+This chart helps compare median prices, price
+variation, and unusually high or low prices.
+
+```{r}
+#| label: ram-price-boxplot
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(
+  laptops_clean,
+  aes(
+    x = factor(ram_gb),
+    y = price_usd,
+    fill = factor(ram_gb)
+  )
+) +
+  geom_boxplot(
+    width = 0.65,
+    alpha = 0.85,
+    outlier.alpha = 0.5,
+    show.legend = FALSE
+  ) +
+  scale_fill_brewer(
+    palette = "Paired"
+  ) +
+  scale_y_continuous(
+    labels = scales::label_dollar()
+  ) +
+  scale_x_discrete(
+    labels = function(x) paste(x, "GB")
+  ) +
+  labs(
+    title = "Laptop Price Distribution by RAM Capacity",
+    subtitle = "Comparison of Laptop Prices in USD",
+    x = "RAM Capacity",
+    y = "Laptop Price (USD)",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+    axis.text.x = element_text(face = "bold"),
+    panel.grid.major.x = element_blank()
+  )
+```
+
+# Storage and Laptop Price Analysis
+
+In this section, I explore how laptop prices vary
+by storage capacity.
+
+I use the `case_when()` function to display storage
+capacity in GB or TB, making the results easier
+to understand.
+
+## Price Summary by Storage Capacity
+
+```{r}
+#| label: price-summary-by-storage
+
+# Create readable storage capacity labels
+laptops_clean <- laptops_clean |>
+  mutate(
+    storage_label = case_when(
+      storage_gb >= 1024 ~ paste(storage_gb / 1024, "TB"),
+      TRUE ~ paste(storage_gb, "GB")
+    )
+  )
+
+# Calculate price statistics by storage capacity
+storage_summary <- laptops_clean |>
+  group_by(storage_gb, storage_label) |>
+  summarise(
+    total_laptops = n(),
+    average_price = mean(price_usd),
+    median_price = median(price_usd),
+    minimum_price = min(price_usd),
+    maximum_price = max(price_usd),
+    .groups = "drop"
+  ) |>
+  arrange(storage_gb)
+
+# Display the storage price summary
+storage_summary |>
+  select(-storage_gb) |>
+  mutate(
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "Storage Capacity",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)",
+      "Minimum Price (USD)",
+      "Maximum Price (USD)"
+    ),
+    caption = "Laptop Price Summary by Storage Capacity",
+    row.names = FALSE
+  )
+```
+
+## Median Laptop Price by Storage Capacity
+
+The following chart compares median laptop prices
+across different storage capacities.
+
+The `geom_point()` and `geom_line()` functions
+help show changes in median prices.
+
+```{r}
+#| label: storage-price-chart
+#| fig-width: 10
+#| fig-height: 6
+
+ggplot(
+  storage_summary,
+  aes(
+    x = fct_reorder(storage_label, storage_gb),
+    y = median_price,
+    group = 1
+  )
+) +
+  geom_line(
+    color = "steelblue",
+    linewidth = 1.2
+  ) +
+  geom_point(
+    aes(color = storage_label),
+    size = 5,
+    show.legend = FALSE
+  ) +
+  geom_text(
+    aes(
+      label = scales::dollar(
+        median_price,
+        accuracy = 1
+      )
+    ),
+    vjust = -1.2,
+    size = 3.8,
+    fontface = "bold"
+  ) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_continuous(
+    labels = scales::label_dollar(),
+    expand = expansion(mult = c(0.05, 0.20))
+  ) +
+  labs(
+    title = "Median Laptop Price by Storage Capacity",
+    subtitle = "Comparison of Storage Sizes from GB to TB",
+    x = "Storage Capacity",
+    y = "Median Price (USD)",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 16
+    ),
+    axis.text.x = element_text(face = "bold"),
+    panel.grid.major.x = element_blank()
+  )
+```
+
+# CPU Core Count and Laptop Price Analysis
+
+In this section, I explore the relationship between
+the number of CPU cores and laptop prices.
+
+The purpose is to identify whether laptops with more
+CPU cores tend to have higher prices.
+
+## Price Summary by CPU Core Count
+
+```{r}
+#| label: price-summary-by-cpu
+
+# Calculate price statistics by CPU core count
+cpu_summary <- laptops_clean |>
+  group_by(cpu_core_count) |>
+  summarise(
+    total_laptops = n(),
+    average_price = mean(price_usd),
+    median_price = median(price_usd),
+    minimum_price = min(price_usd),
+    maximum_price = max(price_usd),
+    .groups = "drop"
+  ) |>
+  arrange(cpu_core_count)
+
+# Display the CPU price summary
+cpu_summary |>
+  mutate(
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "CPU Cores",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)",
+      "Minimum Price (USD)",
+      "Maximum Price (USD)"
+    ),
+    caption = "Laptop Price Summary by CPU Core Count",
+    row.names = FALSE
+  )
+```
+
+## CPU Core Count vs. Laptop Price
+
+The `geom_point()` function displays individual
+laptop prices, while `geom_smooth()` adds a trend line.
+
+Different colors represent different laptop categories.
+
+```{r}
+#| label: cpu-price-scatterplot
+#| fig-width: 11
+#| fig-height: 7
+
+ggplot(
+  laptops_clean,
+  aes(
+    x = cpu_core_count,
+    y = price_usd
+  )
+) +
+  geom_point(
+    aes(color = device_category),
+    size = 2.6,
+    alpha = 0.55,
+    position = position_jitter(
+      width = 0.35,
+      height = 0,
+      seed = 123
+    )
+  ) +
+
+  # Add the overall trend line
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x,
+    color = "#263238",
+    fill = "#90A4AE",
+    linewidth = 1.3,
+    linetype = "dashed",
+    se = TRUE
+  ) +
+
+  # Assign a color to each laptop category
+  scale_color_manual(
+    values = c(
+      "Business" = "#0072B2",
+      "Convertible" = "#E69F00",
+      "Gaming" = "#D55E00",
+      "General" = "#009E73",
+      "Thin & Light" = "#CC79A7"
+    )
+  ) +
+
+  # Display actual CPU core counts
+  scale_x_continuous(
+    breaks = sort(unique(laptops_clean$cpu_core_count))
+  ) +
+
+  scale_y_continuous(
+    labels = scales::label_dollar(),
+    breaks = scales::breaks_width(1000)
+  ) +
+
+  labs(
+    title = "CPU Core Count vs. Laptop Price",
+    subtitle = "Price Distribution and Overall Trend by Laptop Category",
+    x = "Number of CPU Cores",
+    y = "Laptop Price (USD)",
+    color = "Device Category",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+
+  theme_minimal(base_size = 14) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 19
+    ),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(size = 11),
+    legend.position = "bottom",
+    legend.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    plot.caption = element_text(
+      color = "gray40",
+      size = 10
+    )
+  ) +
+  guides(
+    color = guide_legend(nrow = 1)
+  )
+```
+
+## Interpretation
+
+The chart shows a positive relationship between
+CPU core count and laptop prices.
+
+Laptops with more CPU cores generally have higher prices.
+Gaming laptops are also among the most expensive models.
+
+However, laptops with the same number of CPU cores
+can have different prices. This suggests that other
+hardware specifications may also affect laptop prices.
+
+# Combined RAM and Storage Analysis
+
+In this section, I analyze RAM and storage capacity
+together to compare laptop prices.
+
+The purpose is to identify which hardware combinations
+are associated with higher or lower prices.
+
+## Price Summary by RAM and Storage
+
+```{r}
+#| label: ram-storage-summary
+
+# Calculate price statistics by RAM and storage
+ram_storage_summary <- laptops_clean |>
+  group_by(ram_gb, storage_gb, storage_label) |>
+  summarise(
+    total_laptops = n(),
+    average_price = mean(price_usd),
+    median_price = median(price_usd),
+    .groups = "drop"
+  ) |>
+  arrange(ram_gb, storage_gb)
+
+# Display the combined price summary
+ram_storage_summary |>
+  select(-storage_gb) |>
+  mutate(
+    ram_gb = paste(ram_gb, "GB"),
+    across(
+      ends_with("_price"),
+      ~ scales::dollar(.x, accuracy = 0.01)
+    )
+  ) |>
+  knitr::kable(
+    col.names = c(
+      "RAM Capacity",
+      "Storage Capacity",
+      "Total Laptops",
+      "Average Price (USD)",
+      "Median Price (USD)"
+    ),
+    caption = "Laptop Prices by RAM and Storage",
+    row.names = FALSE
+  )
+```
+
+## RAM and Storage Price Heatmap
+
+The `geom_tile()` function creates a heatmap to
+compare median prices across different combinations
+of RAM and storage.
+
+Darker colors represent higher median prices.
+Each cell also shows the median price and the
+number of laptop records.
+
+```{r}
+#| label: ram-storage-heatmap
+#| fig-width: 12
+#| fig-height: 8
+
+ggplot(
+  ram_storage_summary,
+  aes(
+    x = fct_reorder(storage_label, storage_gb),
+    y = factor(ram_gb),
+    fill = median_price
+  )
+) +
+
+  # Create the heatmap
+  geom_tile(
+    color = "white",
+    linewidth = 0.8
+  ) +
+
+  # Display median prices and record counts
+  geom_text(
+    aes(
+      label = paste0(
+        scales::dollar(median_price, accuracy = 1),
+        "\n(n = ", total_laptops, ")"
+      ),
+      color = median_price > 2000
+    ),
+    size = 3.2,
+    fontface = "bold",
+    lineheight = 0.95
+  ) +
+
+  # Set the price color scale
+  scale_fill_gradient(
+    low = "#E3F2FD",
+    high = "#0D477D",
+    labels = scales::label_dollar()
+  ) +
+
+  scale_color_manual(
+    values = c("FALSE" = "black", "TRUE" = "white"),
+    guide = "none"
+  ) +
+
+  scale_y_discrete(
+    labels = function(x) paste(x, "GB")
+  ) +
+
+  labs(
+    title = "Median Laptop Price by RAM and Storage",
+    subtitle = "Combined Hardware Specifications",
+    x = "Storage Capacity",
+    y = "RAM Capacity",
+    fill = "Median Price (USD)",
+    caption = "Source: Andre Thomson's Laptop Dataset"
+  ) +
+
+  theme_minimal(base_size = 14) +
+
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      size = 19
+    ),
+    plot.subtitle = element_text(size = 12),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(face = "bold"),
+    panel.grid = element_blank(),
+    legend.position = "bottom",
+    legend.key.width = grid::unit(2, "cm")
+  )
+```
+
+# Results and Discussion
+
+This extension uses additional Tidyverse functions
+to explore laptop prices based on brand, RAM,
+storage capacity, and CPU core count.
+
+## Overall Laptop Summary
+
+```{r}
+#| label: overall-summary
+
+# Calculate the main dataset statistics
+overall_summary <- tibble(
+  Description = c(
+    "Total Laptop Records",
+    "Total Laptop Brands",
+    "Total Device Categories",
+    "Average Price (USD)",
+    "Median Price (USD)",
+    "Minimum Price (USD)",
+    "Maximum Price (USD)"
+  ),
+  Value = c(
+    scales::comma(nrow(laptops_clean)),
+    n_distinct(laptops_clean$brand),
+    n_distinct(laptops_clean$device_category),
+    scales::dollar(mean(laptops_clean$price_usd)),
+    scales::dollar(median(laptops_clean$price_usd)),
+    scales::dollar(min(laptops_clean$price_usd)),
+    scales::dollar(max(laptops_clean$price_usd))
+  )
+)
+
+knitr::kable(
+  overall_summary,
+  col.names = c("Dataset Information", "Value"),
+  caption = "Overall Laptop Dataset Summary",
+  row.names = FALSE
+)
+```
+
+## Tidyverse Functions Used in This Extension
+
+The following table summarizes the main functions
+used to extend the original vignette.
+
+```{r}
+#| label: tidyverse-functions
+#| echo: false
+
+extension_functions <- tribble(
+  ~Function, ~Package, ~Purpose,
+  "mutate()", "dplyr", "Convert prices from INR to USD.",
+  "relocate()", "dplyr", "Organize price columns.",
+  "case_when()", "dplyr", "Create GB and TB storage labels.",
+  "slice_max()", "dplyr", "Identify the most common brands.",
+  "fct_reorder()", "forcats", "Organize chart categories.",
+  "geom_boxplot()", "ggplot2", "Compare price distributions.",
+  "geom_smooth()", "ggplot2", "Show the overall price trend.",
+  "geom_tile()", "ggplot2", "Compare RAM and storage together."
+)
+
+knitr::kable(
+  extension_functions,
+  caption = "Tidyverse Functions Used in the Extension",
+  row.names = FALSE
+)
+```
+
+## Discussion
+
+The original vignette focused on laptop categories
+and basic hardware requirements.
+
+This extension provides a more detailed analysis
+of laptop prices by brand, RAM, storage capacity,
+and CPU core count.
+
+The conversion from INR to USD makes the prices
+easier to understand.
+
+The different tables and visualizations help compare
+hardware specifications and identify price patterns.
+
+The CPU analysis shows that laptops with more CPU
+cores generally have higher prices. However, price
+differences may also depend on other specifications
+and device categories.
+
+## Limitations
+
+This analysis has some limitations:
+
+- The dataset represents the laptop market in India.
+- Prices in USD are estimated using an average
+  exchange rate.
+- Some hardware combinations have fewer laptop records.
+- Other factors, such as GPU performance and processor
+  generation, may also be related to laptop prices.
+- The results show relationships between variables
+  but do not prove causation.
+
+# Conclusion
+
+In this project, I extended Andre Thomson's original
+vignette using additional Tidyverse functions.
+
+I converted laptop prices from INR to USD and explored
+the relationship between prices and different hardware
+specifications.
+
+I also created additional tables, bar charts, boxplots,
+a scatter plot, and a heatmap.
+
+This assignment helped me better understand how
+Tidyverse functions work together to clean, transform,
+summarize, and visualize real-world data.
+
+It also helped me practice collaboration with GitHub
+by building on another student's work.
+
+# AI Use
+
+ChatGPT was used to help understand the assignment
+requirements, review the original vignette, organize
+the extension, improve the English writing, and
+provide guidance on R code and Tidyverse functions.
+
+I reviewed the code, tables, and visualizations
+during the development of this extension.
+
+# References
+
+- Thomson, A. (2026). [Laptop Prices with Tidyverse](https://github.com/DW8888/fall2027-data607-tidyverse-assignment/blob/main/Andre_Thomson_Laptop_Prices_Tidyverse.qmd).
+
+- Kaggle. [Laptops Cleaned Dataset](https://www.kaggle.com/datasets/githubmasterin/laptops-cleaned-dataset).
+
+- [Tidyverse Documentation](https://www.tidyverse.org/).
+
+- [ggplot2 Documentation](https://ggplot2.tidyverse.org/).
+
+- Federal Reserve Economic Data (FRED).
+  [Indian Rupees to U.S. Dollar Annual Exchange Rate](https://fred.stlouisfed.org/series/AEXINUS).
