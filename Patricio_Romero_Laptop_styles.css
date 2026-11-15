@@ -1,0 +1,16 @@
+/* Justify paragraph text */
+p {
+  text-align: justify;
+  line-height: 1.7;
+}
+
+/* Justify list text */
+li {
+  text-align: justify;
+  line-height: 1.6;
+}
+
+/* Keep headings aligned to the left */
+h1, h2, h3, h4 {
+  text-align: left;
+}
