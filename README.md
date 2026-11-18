@@ -58,6 +58,8 @@ Do not submit work to the previous course repository. Use this repository for th
 | Kingsley Kojo Kpoku | [Card Association Analysis Tidyverse](Kingsley%20Kpoku-%20Card%20Association%20Analysis%20Tidyverse.qmd) | dplyr::filter(), dplyr::mutate(), dplyr::group_by(), dplyr::summarize(), tidyr::pivot_longer(), ggplot2::ggplot() | [Card Association dataset](https://github.com/MrKpoku/Data-Acquisition-and-Management-Kingsley-Kojo-Kpoku/blob/main/PROJECT%202/Card_Association_V1.csv) | Converts wide data to long format, identifies the card network with the most transactions, and visualizes the results. |
 | Carol Campbell | [Australia Summer Weather](Australia%20Summer%20Weather.qmd) | purrr::pmap(), jsonlite::fromJSON(), dplyr::mutate(), dplyr::group_by(), dplyr::summarise(), ggplot2::ggplot() | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-forecast-api) | Retrieves weather data for four Australian cities with pmap(), combines API results, and summarizes and visualizes summer temperatures. |
 
+| Yalda Azamee | [AI Adoption and Developer Attitudes](ai_adoption_tidyverse.R) | readr::read_csv(), dplyr::select(), dplyr::count(), dplyr::mutate(), dplyr::filter(), ggplot2::geom_col() | 2025 Stack Overflow Developer Survey | Summarizes AI adoption responses, calculates percentages, and visualizes adoption frequency. Requires results.CSV, which is not currently included in this repository. |
+
 ## Vignette Extensions
 
 **Students:** After completing Part 2, edit this README in place by adding one row that states **whose vignette you extended** and links to both the original and your extension.
