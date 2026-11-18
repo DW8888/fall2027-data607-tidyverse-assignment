@@ -1,0 +1,113 @@
+---
+title: "Tidyverse Vignette Assignment. Exploring IMDb Top 250 Movies with Tidyverse"
+author: "Yalda Azamee"
+format: html
+date: 11.2.26
+editor: visual
+---
+
+## Approach
+
+For this assignment, I will use the IMDb Top 250 Movies dataset to explore movie ratings.
+
+My research question is: **How do IMDb movie ratings compare across release decades?**
+
+At first, I will import the CSV file into R studio. Then, I will use dplyr to select movie titles, release years, and ratings. I will remove missing values and group movies by decade, such as the 1990s, 2000s, and 2010s.
+
+Next, I will calculate the average IMDb rating for each decade. Then, I use ggplot2 to create a graph to compare the results.
+
+This project will help me practice cleaning, organizing, summarizing, and visualizing data using Tidyverse packages.
+
+## Code Base
+
+```{r}
+library(tidyverse)
+
+movies <- read_csv("https://raw.githubusercontent.com/Maximus2485/Tidyverse-Vignette-Assignment.-Maxim.-Data-607/refs/heads/main/imdb_top_250_movies.csv")
+
+# Lets select useful columns and remove missing values
+movies_clean <- movies %>%
+  select(primaryTitle, startYear, averageRating) %>%
+  filter(!is.na(startYear), !is.na(averageRating)) %>%
+#I used mutate() to create a new column called Decade. This code changes each movie's release year into its decade. For example, a movie released in 1994 belongs to the 1990s. This helps me compare movie ratings across different decades.
+  mutate(Decade = (startYear %/% 10) * 10)
+
+
+# Find the average rating for each decade
+decade_summary <- movies_clean %>%
+  group_by(Decade) %>%
+  summarise(
+    Movie_Count = n(),
+    Average_Rating = mean(averageRating),
+    .groups = "drop"
+  )
+
+decade_summary
+
+# Create a graph
+ggplot(decade_summary, aes(x = Decade, y = Average_Rating)) +
+  geom_line(color = "blue") +
+  geom_point(size = 3) +
+  labs(
+    title = "Average IMDb Rating by Decade",
+    x = "Release Decade",
+    y = "Average Rating"
+  )
+
+```
+
+## Conclusion
+
+Thus, the graph shows the average IMDb movie ratings by decade. The 1990s have the highest average rating, around 8.41, while the 1920s have the lowest average rating, around 8.13.
+
+The ratings change slightly across different decades, but most average ratings are between 8.2 and 8.4.
+
+This shows that highly rated movies come from many different decades. However, there is no clear pattern showing that newer movies always have higher ratings than older movies.
+
+## References
+
+Google Deep Mind. (2026). Gemini 3 Flash \[Large language model\]. \[<https://gemini.google.com.%5D(https://gemini.google.com/)> Accessed November 2nd, 2026.
+
+Wickham, H., Çetinkaya-Rundel, M., & Grolemund, G. (2023). ***R for data science*** (2nd ed.). O'Reilly Media. <https://r4ds.hadley.nz/>
+
+## Extension 1: Top 10 Highest-Rated Movies
+
+```{r}
+# Find the 10 highest-rated movies
+
+top_10_movies <- movies_clean %>%
+  arrange(desc(averageRating)) %>%
+  slice_head(n = 10) %>%
+  select(primaryTitle, startYear, averageRating)
+
+top_10_movies
+```
+# Visualize the 10 highest-rated movies
+
+```{r}
+ggplot(top_10_movies,
+       aes(x = reorder(primaryTitle, averageRating),
+           y = averageRating)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Top 10 Highest-Rated IMDb Movies",
+    x = "Movie Title",
+    y = "IMDb Rating"
+  ) +
+  theme_minimal()
+```
+## Interpretation of the Top 10 Highest-Rated Movies
+
+The results show that *The Shawshank Redemption* has the highest IMDb rating among the selected movies, with a rating of 9.3, followed by *The Godfather* with 9.2 and *The Dark Knight* with 9.1. Several other movies have ratings of 9.0, showing that they are also highly rated by IMDb users.
+
+The bar chart makes it easier to compare the ratings of the top 10 movies. All selected movies have ratings between 8.8 and 9.3, indicating that they are highly rated.
+
+This extension helped me practice using the Tidyverse functions `arrange()`, `slice_head()`, and `select()` to organize and filter data. I also used `ggplot2` to visualize the results.
+
+## Extension Conclusion
+
+In this extension, I expanded the original analysis by identifying and visualizing the 10 highest-rated movies from the IMDb Top 250 dataset. The results show that all 10 movies have high IMDb ratings, ranging from 8.8 to 9.3. This additional analysis demonstrates how the Tidyverse can be used to organize, summarize, and visualize movie data. It also helped me improve my skills in data manipulation and visualization using R.
+
+
+
