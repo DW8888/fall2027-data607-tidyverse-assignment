@@ -1,0 +1,22 @@
+Package: courseReproducibility
+Version: 0.1.0
+Title: Dependencies for DATA 607 Submission Execution
+Description: Declares the shared R dependencies used to execute course
+    submissions in clean continuous integration sessions.
+License: MIT
+Encoding: UTF-8
+Imports:
+    tidyverse,
+    knitr,
+    jsonlite,
+    readxl,
+    scales,
+    psych,
+    RColorBrewer,
+    ggsci,
+    afex,
+    DT,
+    maps,
+    pacman,
+    janitor,
+    skimr
