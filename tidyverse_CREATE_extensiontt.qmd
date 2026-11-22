@@ -1,0 +1,177 @@
+---
+title: "Tidyverse CREATE Assignment_extension" 
+author: "Muhammad Ali & Troy Tournat"
+format: html
+execute:
+  eval: true
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+## Overview
+
+This assignment is to work on our collaborative skills within our peers to handle editing scripts, code, and to extend code.
+
+For this assignment, I have chosen a dataset from Kaggle titled, "Spotify top chart songs 2022" where i will show basic data preparing and cleaning. Followed by a simple visualization on the clean data.
+
+## Data Source
+
+- [Kaggle.com](Sveta151.%20“Spotify%20Top%20Chart%20Songs%202022.”%20Kaggledatasets,%205%20Sept.%202022,%20https://www.kaggle.com/datasets/sveta151/spotify-top-chart-songs-2022.%20Accessed%2010%20Nov.%202026.)
+
+- [Raw Github CSV](https://raw.githubusercontent.com/HaiderrX/CUNY-SPS-MSDS/refs/heads/main/DATA607/Tidyverse%20Assignments/spotify_top_charts_22.csv)
+
+## Analysis
+
+### Libraries
+
+```{r library}
+library(tidyverse)
+library(ggplot2)
+```
+
+### Reading in Data
+
+```{r read data}
+raw_data <- readr::read_csv("https://raw.githubusercontent.com/HaiderrX/CUNY-SPS-MSDS/refs/heads/main/DATA607/Tidyverse%20Assignments/spotify_top_charts_22.csv")
+```
+
+### Inspect Data
+
+```{r inspect data}
+head(raw_data)
+```
+
+### `dplyr::select()`
+
+To begin this vignette, we can do basic functions to keep columns that we think is relevant using the `select()` function.
+
+For this dataset, we can omit `uri`, `instrumentalness` and `time_signature`.
+
+```{r selecting columns}
+raw_data_2 <- raw_data %>%
+  dplyr::select(-c(uri, instrumentalness, time_signature))
+
+head(raw_data_2)
+```
+
+Next we can split the `artist_names` as there are songs with more than 1 artist. To split artists to separate rows, we can use the `seprate_rows()` function, instead of splitting to another column, we want it in the same column just on a different row. It will retain the same attributes as the initial row.
+
+### `tidyr::separate_rows()`
+
+```{r separate artist names}
+clean_data <- raw_data_2 %>%
+  separate_rows(artist_names, sep = ",\\s*")  
+
+glimpse(clean_data)
+```
+
+### `ggplot()` - Bar Plot of Top n Artists
+
+Now that we have our dataset ready to be analyzed, the first and basic thing we can do is create a plot of top 10 artists in this list, regardless of features.
+
+To assist with that, we can use the `ggplot2` library and its many tools to build layers of the plot to our final product.
+
+But in order to create the plot, we need a separate variable that allows us to get our top 10, or n. and with that, we can use 2 more functions from the dplyr package:
+
+- `count()`
+
+- `slice_head()`
+
+```{r bar plot}
+top_n_artists <- clean_data %>%
+  dplyr::count(artist_names, sort = TRUE) %>%
+  dplyr::slice_head(n = 20)
+
+ggplot(top_n_artists, aes(x = reorder(artist_names, n), y = n)) +
+  ggplot2::geom_col(fill = "cornflowerblue") +
+  ggplot2::coord_flip() + 
+  ggplot2::labs(
+    title = "Top 20 Artists on the 2022 Spotify Charts",
+    subtitle = "Includes Separated Featured Artists",
+    x = "Artist Name",
+    y = "Number of Songs"
+  ) +
+  theme_minimal()
+```
+
+With `ggplot()`, it is not enough to just leave it at the desired plot type, in this case a barplot using `geom_col()`, we also have to make the plot readable. Which means instead of having the columns be a vertical visualization, we can make it horizontal as the counts are in descending order (largest to smallest) and to include labels so we know what our variables and what does this plot mean.
+
+### More Analysis?
+
+There are certainly more things to analyze in this dataset, however the purpose of this vignette is to introduce the basics of reading in a csv file, the process of data cleaning using functions and a basic visualization.
+
+------------------------------------------------------------------------
+
+##  Extension
+
+Now, we will go back to the raw_data_2 subset, use **dyplr** to select certain variables and filter the peak rank to the top 20 songs.
+
+There is a time variable in the dataset called duration_ms which is song duration in milliseconds. We are going to use an additional tidyverse package called **lubridate** to transform milliseconds into seconds.
+
+There is also a peak_rank variable, now filtered 1 to 20 that we want to categorize into three groupings: the top 3 ranked songs, then songs ranked 4 through 10, finally songs ranked 11 through 20. We will use **dplyr** mutate() to do that as well as make sure when it's graphed, it's in that order.
+
+```{r clean extension}
+
+#reformat additional variables using raw_data_2
+clean_data_ext <- raw_data_2 %>%
+  select(track_name, artist_names, peak_rank, weeks_on_chart, duration_ms)%>% 
+  filter(peak_rank < 21)%>% 
+  mutate(
+    duration_min = round(time_length(dmilliseconds(duration_ms), "minutes"), 1), 
+    peak_rank_cat = case_when(
+      peak_rank %in% c(1:3) ~ "1-3", 
+      peak_rank %in% c(4:10) ~ "4-10",
+      peak_rank %in% c(11:20) ~ "11-20"), 
+    peak_rank_cat = factor(peak_rank_cat, levels = c("1-3", "4-10", "11-20")))
+  
+
+
+```
+
+Finally, we want to see if there's any correlation between rank of the song and minute length. We will use **ggplot2**'s geom_boxplot() to see.
+
+```{r boxplot }
+#boxplot 
+clean_data_ext |>
+  ggplot(aes(x = peak_rank_cat, y = duration_min)) +
+  geom_boxplot(width = 0.5, fill = "cornflowerblue", alpha = 0.6) +
+  stat_summary(
+    fun = median,
+    geom = "text",
+    aes(label = round(after_stat(y), 1)),
+    position = position_nudge(x = -0.4),   #moves the label left
+    hjust = 0,                             
+    fontface = "bold",
+    size = 3,
+    color = "firebrick"
+  ) +
+  labs(
+    title = "Boxplot: peak rank categories vs song duration in minutes",
+    x = "Peak rank", y = "Song duration (min)"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+## Functions Used:
+
+- `readr::read_csv()`: Reads in a csv file, in this case, a raw file from Github
+
+- `dplyr::select()`: When cleaning data or if we want to extract certain columns, we can use this function to keep columns. But if the dataset has too many columns, an easy way to dispose of those columns is to include a "-" besides it.
+
+- `tidyr::separate_rows()`: When we have some delimiter or in this case a "," indicating more than one label, we can call this function to separate into new rows without losing its original information from the other columns.
+
+- `dplyr::count()`: We can use this to keep track of the frequency of something occurring, in this case the artist's name.
+
+- `dplyr::slice_head()`: We can use this as a way to help build a ggplot if we want to make a top 10, 20 or n plot.
+
+- `ggplot2::geom_col()`: One of the many plot options provided in the `ggplot2` library. This one is a vertical column plot.
+
+- `ggplot2::coord_flip()`: Literally flipping the plot so it can be easier to read, such as turning a column plot to a bar plot.
+
+- `ggplot2::labs()`: Create the title, subtitle, x and y labels on a plot so we can get a full idea of what this plot represents.
+
+## References
+
+- Sveta151. “Spotify Top Chart Songs 2022.” *Kaggledatasets*, 5 Sept. 2022, <https://www.kaggle.com/datasets/sveta151/spotify-top-chart-songs-2022>. Accessed 10 Nov. 2026.
