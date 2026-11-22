@@ -106,11 +106,11 @@ There are certainly more things to analyze in this dataset, however the purpose 
 
 ##  Extension
 
-Now, we will go back to the raw_data_2 subset, use **dyplr** to select certain variables and filter the peak rank to the top 20 songs.
+Now, we will go back to the `raw_data_2` subset, use **`dyplr`** to select certain variables and filter the peak rank to the top 20 songs.
 
-There is a time variable in the dataset called duration_ms which is song duration in milliseconds. We are going to use an additional tidyverse package called **lubridate** to transform milliseconds into seconds.
+There is a time variable in the dataset called `duration_ms` which is song duration in milliseconds. We are going to use an additional tidyverse package called **`lubridate`** to transform milliseconds into seconds.
 
-There is also a peak_rank variable, now filtered 1 to 20 that we want to categorize into three groupings: the top 3 ranked songs, then songs ranked 4 through 10, finally songs ranked 11 through 20. We will use **dplyr** mutate() to do that as well as make sure when it's graphed, it's in that order.
+There is also a `peak_rank` variable, now filtered 1 to 20 that we want to categorize into three groupings: the top 3 ranked songs, then songs ranked 4 through 10, finally songs ranked 11 through 20. We will use **`dplyr`** `mutate()` to do that as well as make sure when it's graphed, it's in that order.
 
 ```{r clean extension}
 
@@ -130,7 +130,7 @@ clean_data_ext <- raw_data_2 %>%
 
 ```
 
-Finally, we want to see if there's any correlation between rank of the song and minute length. We will use **ggplot2**'s geom_boxplot() to see.
+Finally, we want to see if there's a correlation between rank of the song and minute length. We will use **`ggplot2`**'s `geom_boxplot()` to check.
 
 ```{r boxplot }
 #boxplot 
